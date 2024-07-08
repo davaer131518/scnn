@@ -1,21 +1,43 @@
 """Rules for update step-sizes after a line-search."""
 from typing import Optional
-
+import tensorflow as tf
 import lab
 
 
-class StepSizeUpdater:
+# class StepSizeUpdater:
 
+#     """Base class for methods to update step-sizes between iterations."""
+
+#     def __call__(
+#         self,
+#         new_step_size: float,
+#         old_step_size: float,
+#         s: Optional[lab.Tensor] = None,
+#         f0: Optional[float] = None,
+#         f1: Optional[float] = None,
+#         grad: Optional[lab.Tensor] = None,
+#     ) -> float:
+#         """Compute a new step-size given the result of the most recent line-
+#         search and the step-size from the previous iteration.
+
+#         :param new_step_size: the step-size most recently returned by the line-search.
+#         :param old_step-size: the step-size from the previous iteration.
+#         :param s: the difference in iterates: w_k - w_{k-1}
+#         """
+
+#         raise NotImplementedError("A step-size update must implement '__call__'!")
+
+class StepSizeUpdater:
     """Base class for methods to update step-sizes between iterations."""
 
     def __call__(
         self,
         new_step_size: float,
         old_step_size: float,
-        s: Optional[lab.Tensor] = None,
+        s: Optional[tf.Tensor] = None,
         f0: Optional[float] = None,
         f1: Optional[float] = None,
-        grad: Optional[lab.Tensor] = None,
+        grad: Optional[tf.Tensor] = None,
     ) -> float:
         """Compute a new step-size given the result of the most recent line-
         search and the step-size from the previous iteration.
@@ -26,7 +48,6 @@ class StepSizeUpdater:
         """
 
         raise NotImplementedError("A step-size update must implement '__call__'!")
-
 
 class KeepNew(StepSizeUpdater):
 

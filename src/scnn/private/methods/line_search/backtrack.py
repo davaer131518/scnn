@@ -1,8 +1,24 @@
 """Rules for backtracking and updating step-sizes during a line-search."""
 from typing import List, Optional
-
+import tensorflow as tf
 import lab
 
+
+# class Backtracker:
+
+#     """Base class for backtracking conditions."""
+
+#     def __call__(
+#         self,
+#         step_size: float,
+#         grad: Optional[lab.Tensor] = None,
+#     ) -> float:
+#         """Pick the next candidate step-size for a line-search.
+
+#         :param step_size: the step_size previously tried.
+#         :returns: a new step-size to try.
+#         """
+#         raise NotImplementedError("Backtracking methods must implement '__call__'!")
 
 class Backtracker:
 
@@ -11,7 +27,7 @@ class Backtracker:
     def __call__(
         self,
         step_size: float,
-        grad: Optional[lab.Tensor] = None,
+        grad: Optional[tf.Tensor] = None,
     ) -> float:
         """Pick the next candidate step-size for a line-search.
 

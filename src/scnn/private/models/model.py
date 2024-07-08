@@ -10,7 +10,7 @@ TODO:
 
 from math import ceil
 from typing import Optional, Tuple, Callable, Union, List, Dict
-
+import tensorflow as tf
 from scipy.sparse.linalg import (  # type: ignore
     LinearOperator,
     aslinearoperator,
@@ -83,9 +83,27 @@ class Model:
             for i in range(n_batches)
         ]
 
+    # def batch_Xy(
+    #     self, batch_size: Optional[int], X: lab.Tensor, y: lab.Tensor
+    # ) -> List[Dict[str, lab.Tensor]]:
+
+    #     if batch_size is None:
+    #         return [{"X": X, "y": y}]
+
+    #     n = X.shape[0]
+    #     n_batches = ceil(n / batch_size)
+
+    #     return [
+    #         {
+    #             "X": X[i * batch_size : (i + 1) * batch_size],
+    #             "y": y[i * batch_size : (i + 1) * batch_size],
+    #         }
+    #         for i in range(n_batches)
+    #     ]
+
     def batch_Xy(
-        self, batch_size: Optional[int], X: lab.Tensor, y: lab.Tensor
-    ) -> List[Dict[str, lab.Tensor]]:
+        self, batch_size: Optional[int], X: tf.Tensor, y: tf.Tensor
+    ) -> List[Dict[str, tf.Tensor]]:
 
         if batch_size is None:
             return [{"X": X, "y": y}]
@@ -100,7 +118,7 @@ class Model:
             }
             for i in range(n_batches)
         ]
-
+    
     def eval(self):
         self._train = False
 
@@ -129,7 +147,10 @@ class Model:
             "A model must be associated with a objective function."
         )
 
-    def _weights(self, w: Optional[lab.Tensor]) -> lab.Tensor:
+    # def _weights(self, w: Optional[lab.Tensor]) -> lab.Tensor:
+    #     return self.weights if w is None else w
+
+    def _weights(self, w: Optional[tf.Tensor]) -> tf.Tensor:
         return self.weights if w is None else w
 
     def _objective(
@@ -152,14 +173,35 @@ class Model:
             "A model must be associated with a objective function."
         )
 
+    # def _grad(
+    #     self,
+    #     X: lab.Tensor,
+    #     y: lab.Tensor,
+    #     w: lab.Tensor,
+    #     scaling: Optional[float] = None,
+    #     **kwargs,
+    # ) -> lab.Tensor:
+    #     """Compute the gradient of the objective with respect to the model
+    #     parameters.
+
+    #     :param X: (n,d) array containing the data examples.
+    #     :param y: (n,d) array containing the data targets.
+    #     :param w: parameter at which to compute the gradient.
+    #     :param scaling: (optional) scaling parameter for the objective. Defaults to `n * c`.
+    #     :returns: the gradient
+    #     """
+    #     raise NotImplementedError(
+    #         "A model must be able to compute its gradient with respect to the objective."
+    #     )
+
     def _grad(
         self,
-        X: lab.Tensor,
-        y: lab.Tensor,
-        w: lab.Tensor,
+        X: tf.Tensor,
+        y: tf.Tensor,
+        w: tf.Tensor,
         scaling: Optional[float] = None,
         **kwargs,
-    ) -> lab.Tensor:
+    ) -> tf.Tensor:
         """Compute the gradient of the objective with respect to the model
         parameters.
 
@@ -229,17 +271,59 @@ class Model:
 
         return obj
 
+    # def grad(
+    #     self,
+    #     X: lab.Tensor,
+    #     y: lab.Tensor,
+    #     w: Optional[lab.Tensor] = None,
+    #     ignore_regularizer: bool = False,
+    #     return_model_grad: bool = False,
+    #     batch_size: Optional[int] = None,
+    #     step_size: Optional[float] = 1.0,
+    #     **kwargs,
+    # ) -> Union[lab.Tensor, Tuple[lab.Tensor, lab.Tensor]]:
+    #     """Compute the gradient of the objective with respect to the model
+    #     parameters.
+
+    #     :param X: (n,d) array containing the data examples.
+    #     :param y: (n,d) array containing the data targets.
+    #     :param w: (optional) specific parameter at which to compute the gradient.
+    #         Defaults to 'None', in which case the current model state is used.
+    #     :param ignore_regularizer: (optional) whether or not to ignore the regularizer and return
+    #         *only* the gradient of the un-regularized objective.
+    #     :param batch_size: the batch size to use when computing the objective.
+    #         Defaults to `None' which indicates full-batch.
+    #     :param step_size: (optional) step-size to use when computing the proximal gradient mapping.
+    #         Defaults to 1.0.
+    #     :returns: the gradient
+    #     """
+    #     w = self._weights(w)
+    #     model_grad = lab.zeros_like(w)
+    #     for batch in self.batch_Xy(batch_size, X, y):
+    #         model_grad += self._grad(
+    #             **batch, w=w, scaling=y.shape[0], **kwargs
+    #         )
+
+    #     grad = model_grad
+    #     if self.regularizer is not None and not ignore_regularizer:
+    #         grad += self.regularizer.grad(w, model_grad, step_size=step_size)
+
+    #     if return_model_grad:
+    #         return grad, model_grad
+
+    #     return grad
+
     def grad(
         self,
-        X: lab.Tensor,
-        y: lab.Tensor,
-        w: Optional[lab.Tensor] = None,
+        X: tf.Tensor,
+        y: tf.Tensor,
+        w: Optional[tf.Tensor] = None,
         ignore_regularizer: bool = False,
         return_model_grad: bool = False,
         batch_size: Optional[int] = None,
         step_size: Optional[float] = 1.0,
         **kwargs,
-    ) -> Union[lab.Tensor, Tuple[lab.Tensor, lab.Tensor]]:
+    ) -> Union[tf.Tensor, Tuple[tf.Tensor, tf.Tensor]]:
         """Compute the gradient of the objective with respect to the model
         parameters.
 
@@ -256,7 +340,7 @@ class Model:
         :returns: the gradient
         """
         w = self._weights(w)
-        model_grad = lab.zeros_like(w)
+        model_grad = tf.zeros_like(w)
         for batch in self.batch_Xy(batch_size, X, y):
             model_grad += self._grad(
                 **batch, w=w, scaling=y.shape[0], **kwargs
@@ -271,10 +355,59 @@ class Model:
 
         return grad
 
+    # def get_closures(
+    #     self,
+    #     X: lab.Tensor,
+    #     y: lab.Tensor,
+    #     ignore_regularizer: bool = False,
+    #     batch_size: Optional[int] = None,
+    # ) -> Tuple[Callable, Callable]:
+    #     """Returns closures for computing the objective, gradient, and Hessian given (X, y).
+    #         Warning: this closure will retain references to X, y and so can prevent garbage collection of
+    #         these objects.
+    #     :param X: (n,d) array containing the data examples.
+    #     :param y: (n,d) array containing the data targets.
+    #     :param ignore_regularizer: (optional) whether or not to ignore the regularizer and return
+    #         closures for *only* the un-regularized objective.
+    #     :returns: (objective_fn, grad_fn, hessian_fn).
+    #     """
+
+    #     def objective_fn(
+    #         w: Optional[lab.Tensor] = None,
+    #         ignore_regularizer=ignore_regularizer,
+    #         batch_size=batch_size,
+    #         **kwargs,
+    #     ):
+    #         return self.objective(
+    #             X,
+    #             y,
+    #             w=w,
+    #             ignore_regularizer=ignore_regularizer,
+    #             batch_size=batch_size,
+    #             **kwargs,
+    #         )
+
+    #     def grad_fn(
+    #         w: Optional[lab.Tensor] = None,
+    #         ignore_regularizer=ignore_regularizer,
+    #         batch_size=batch_size,
+    #         **kwargs,
+    #     ):
+    #         return self.grad(
+    #             X,
+    #             y,
+    #             w=w,
+    #             ignore_regularizer=ignore_regularizer,
+    #             batch_size=batch_size,
+    #             **kwargs,
+    #         )
+
+    #     return objective_fn, grad_fn
+
     def get_closures(
         self,
-        X: lab.Tensor,
-        y: lab.Tensor,
+        X: tf.Tensor,
+        y: tf.Tensor,
         ignore_regularizer: bool = False,
         batch_size: Optional[int] = None,
     ) -> Tuple[Callable, Callable]:
@@ -289,7 +422,7 @@ class Model:
         """
 
         def objective_fn(
-            w: Optional[lab.Tensor] = None,
+            w: Optional[tf.Tensor] = None,
             ignore_regularizer=ignore_regularizer,
             batch_size=batch_size,
             **kwargs,
@@ -304,7 +437,7 @@ class Model:
             )
 
         def grad_fn(
-            w: Optional[lab.Tensor] = None,
+            w: Optional[tf.Tensor] = None,
             ignore_regularizer=ignore_regularizer,
             batch_size=batch_size,
             **kwargs,

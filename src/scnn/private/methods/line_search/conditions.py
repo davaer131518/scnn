@@ -2,11 +2,27 @@
 from typing import List
 
 import numpy as np
-
+import tensorflow as tf
 import lab
 
 # classes
 
+
+# class LSCondition:
+
+#     """Base class for line-search conditions."""
+
+#     def __call__(
+#         self,
+#         f0: float,
+#         f1: float,
+#         step: lab.Tensor,
+#         grad: lab.Tensor,
+#         step_size: float,
+#     ) -> bool:
+#         raise NotImplementedError(
+#             "Line-search conditions must implement '__call__'!"
+#         )
 
 class LSCondition:
 
@@ -16,8 +32,8 @@ class LSCondition:
         self,
         f0: float,
         f1: float,
-        step: lab.Tensor,
-        grad: lab.Tensor,
+        step: tf.Tensor,
+        grad: tf.Tensor,
         step_size: float,
     ) -> bool:
         raise NotImplementedError(

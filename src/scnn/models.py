@@ -44,7 +44,24 @@ Overview:
 from typing import List, Optional
 
 import numpy as np
+import tensorflow as tf
 
+# class Model:
+#     """Base class for convex and non-convex models.
+
+#     Attributes:
+#         c: the output dimension.
+#         d: the input dimension.
+#         p: the number of neurons.
+#         bias: whether or not the model uses a bias term.
+#         parameters: a list of NumPy arrays comprising the model parameters.
+#     """
+
+#     d: int
+#     p: int
+#     c: int
+#     bias: bool
+#     parameters: List[np.ndarray]
 
 class Model:
     """Base class for convex and non-convex models.
@@ -54,15 +71,70 @@ class Model:
         d: the input dimension.
         p: the number of neurons.
         bias: whether or not the model uses a bias term.
-        parameters: a list of NumPy arrays comprising the model parameters.
+        parameters: a list of tensors comprising the model parameters.
     """
 
     d: int
     p: int
     c: int
     bias: bool
-    parameters: List[np.ndarray]
+    parameters: List[tf.Tensor]
 
+# class GatedModel(Model):
+#     """Abstract class for models with fixed gate vectors.
+
+#     Attributes:
+#         c: the output dimension.
+#         d: the input dimension.
+#         p: the number of neurons. This is is always `1` for a linear model.
+#         bias: whether or not the model uses a bias term.
+#         G: the gate vectors for the Gated ReLU activation stored as a
+#             (d x p) matrix.
+#         G_bias: an optional vector of biases for the gates.
+#     """
+
+#     def __init__(
+#         self,
+#         G: np.ndarray,
+#         c: int,
+#         bias: bool = False,
+#         G_bias: Optional[np.ndarray] = None,
+#     ):
+#         """Construct a new convex Gated ReLU model.
+
+#         Args:
+#             G: a (d x p) matrix of get vectors, where p is the
+#                 number neurons.
+#             c: the output dimension.
+#             bias: whether or not to include a bias term.
+#             G_bias: a vector of bias parameters for the gates.
+#                 Note that `bias` must be True for this to be supported.
+#         """
+#         self.G = G
+#         self.d, self.p = G.shape
+#         self.c = c
+#         self.bias = bias
+
+#         if bias is None:
+#             assert G_bias is None
+#         self.G_bias = G_bias
+
+#         if self.G_bias is None:
+#             self.G_bias = np.zeros(self.p)
+
+#     def compute_activations(self, X: np.ndarray) -> np.ndarray:
+#         """Compute activations for models with fixed gate vectors.
+
+#         Args:
+#             X: (n x d) matrix of input examples.
+
+#         Returns:
+#             D: (n x p) matrix of activation patterns.
+#         """
+#         D = np.maximum(X @ self.G + self.G_bias, 0)
+#         D[D > 0] = 1
+
+#         return D
 
 class GatedModel(Model):
     """Abstract class for models with fixed gate vectors.
@@ -70,31 +142,24 @@ class GatedModel(Model):
     Attributes:
         c: the output dimension.
         d: the input dimension.
-        p: the number of neurons. This is is always `1` for a linear model.
+        p: the number of neurons. This is always `1` for a linear model.
         bias: whether or not the model uses a bias term.
         G: the gate vectors for the Gated ReLU activation stored as a
             (d x p) matrix.
         G_bias: an optional vector of biases for the gates.
     """
 
-    def __init__(
-        self,
-        G: np.ndarray,
-        c: int,
-        bias: bool = False,
-        G_bias: Optional[np.ndarray] = None,
-    ):
+    def __init__(self, G, c, bias=False, G_bias=None):
         """Construct a new convex Gated ReLU model.
 
         Args:
-            G: a (d x p) matrix of get vectors, where p is the
-                number neurons.
+            G: a (d x p) matrix of gate vectors, where p is the number of neurons.
             c: the output dimension.
             bias: whether or not to include a bias term.
             G_bias: a vector of bias parameters for the gates.
                 Note that `bias` must be True for this to be supported.
         """
-        self.G = G
+        self.G = tf.convert_to_tensor(G, dtype=tf.float32)
         self.d, self.p = G.shape
         self.c = c
         self.bias = bias
@@ -104,22 +169,23 @@ class GatedModel(Model):
         self.G_bias = G_bias
 
         if self.G_bias is None:
-            self.G_bias = np.zeros(self.p)
+            self.G_bias = tf.zeros(self.p, dtype=tf.float32)
+        else:
+            self.G_bias = tf.convert_to_tensor(G_bias, dtype=tf.float32)
 
-    def compute_activations(self, X: np.ndarray) -> np.ndarray:
+    def compute_activations(self, X):
         """Compute activations for models with fixed gate vectors.
 
         Args:
-            X: (n x d) matrix of input examples.
+            X: (n x d) tensor of input examples.
 
         Returns:
-            D: (n x p) matrix of activation patterns.
+            D: (n x p) tensor of activation patterns.
         """
-        D = np.maximum(X @ self.G + self.G_bias, 0)
-        D[D > 0] = 1
-
+        X = tf.convert_to_tensor(X, dtype=tf.float32)
+        D = tf.maximum(tf.matmul(X, self.G) + self.G_bias, 0)
+        D = tf.where(D > 0, 1.0, 0.0)
         return D
-
 
 class LinearModel(Model):
     """Basic linear model.
@@ -190,6 +256,100 @@ class LinearModel(Model):
         return y_hat
 
 
+# class ConvexGatedReLU(GatedModel):
+#     """Convex reformulation of a Gated ReLU Network with two-layers.
+
+#     This model has the prediction function
+
+#     .. math::
+
+#         g(X) = \\sum_{i=1}^m \\text{diag}(X g_i > 0) X U_{1i}.
+
+#     A one-vs-all strategy is used to extend the model to multi-dimensional
+#     targets.
+
+#     Attributes:
+#         c: the output dimension.
+#         d: the input dimension.
+#         p: the number of neurons.
+#         bias: whether or not the model uses a bias term.
+#         G: the gate vectors for the Gated ReLU activation stored as a
+#             (d x p) matrix.
+#         G_bias: an optional vector of biases for the gates.
+#         parameters: the parameters of the model stored as a list of tensors.
+#     """
+
+#     def __init__(
+#         self,
+#         G: np.ndarray,
+#         c: int = 1,
+#         bias: bool = False,
+#         G_bias: Optional[np.ndarray] = None,
+#     ) -> None:
+#         """Construct a new convex Gated ReLU model.
+
+#         Args:
+#             G: a (d x p) matrix of get vectors, where p is the
+#                 number neurons.
+#             c: the output dimension.
+#             bias: whether or not to include a bias term.
+#             G_bias: a vector of bias parameters for the gates.
+#                 Note that `bias` must be True for this to be supported.
+#         """
+
+#         super().__init__(G, c, bias, G_bias)
+
+#         # one linear model per gate vector
+#         if self.bias:
+#             self.parameters = [
+#                 np.zeros((c, self.p, self.d)),
+#                 np.zeros((c, self.p)),
+#             ]
+#         else:
+#             self.parameters = [np.zeros((c, self.p, self.d))]
+
+#     def get_parameters(self) -> List[np.ndarray]:
+#         """Get the model parameters."""
+#         return self.parameters
+
+#     def set_parameters(self, parameters: List[np.ndarray]):
+#         """Set the model parameters.
+
+#         This method safety checks the dimensionality of the new parameters.
+
+#         Args:
+#             parameters: the new model parameters.
+#         """
+#         assert parameters[0].shape == (self.c, self.p, self.d)
+
+#         if self.bias:
+#             assert parameters[1].shape == (self.c, self.p)
+
+#         self.parameters = parameters
+
+#     def __call__(self, X: np.ndarray) -> np.ndarray:
+#         """Compute the model predictions for a given dataset.
+
+#         Args:
+#             X: an (n  d) array containing the data examples on
+#                 which to predict.
+
+#         Returns:
+#             - g(X): the model predictions for X.
+#         """
+#         D = super().compute_activations(X)
+
+#         if self.bias:
+#             Z = (
+#                 np.einsum("ij, lkj->lik", X, self.parameters[0])
+#                 + self.parameters[1]
+#             )
+
+#             # TODO: need to check this computation.
+#             return np.einsum("lik, ik->il", Z, D)
+#         else:
+#             return np.einsum("ij, lkj, ik->il", X, self.parameters[0], D)
+
 class ConvexGatedReLU(GatedModel):
     """Convex reformulation of a Gated ReLU Network with two-layers.
 
@@ -213,40 +373,31 @@ class ConvexGatedReLU(GatedModel):
         parameters: the parameters of the model stored as a list of tensors.
     """
 
-    def __init__(
-        self,
-        G: np.ndarray,
-        c: int = 1,
-        bias: bool = False,
-        G_bias: Optional[np.ndarray] = None,
-    ) -> None:
+    def __init__(self, G, c=1, bias=False, G_bias=None):
         """Construct a new convex Gated ReLU model.
 
         Args:
-            G: a (d x p) matrix of get vectors, where p is the
-                number neurons.
+            G: a (d x p) matrix of gate vectors, where p is the number neurons.
             c: the output dimension.
             bias: whether or not to include a bias term.
             G_bias: a vector of bias parameters for the gates.
                 Note that `bias` must be True for this to be supported.
         """
-
         super().__init__(G, c, bias, G_bias)
 
-        # one linear model per gate vector
         if self.bias:
             self.parameters = [
-                np.zeros((c, self.p, self.d)),
-                np.zeros((c, self.p)),
+                tf.zeros((c, self.p, self.d), dtype=tf.float32),
+                tf.zeros((c, self.p), dtype=tf.float32),
             ]
         else:
-            self.parameters = [np.zeros((c, self.p, self.d))]
+            self.parameters = [tf.zeros((c, self.p, self.d), dtype=tf.float32)]
 
-    def get_parameters(self) -> List[np.ndarray]:
+    def get_parameters(self) -> List[tf.Tensor]:
         """Get the model parameters."""
         return self.parameters
 
-    def set_parameters(self, parameters: List[np.ndarray]):
+    def set_parameters(self, parameters: List[tf.Tensor]):
         """Set the model parameters.
 
         This method safety checks the dimensionality of the new parameters.
@@ -261,12 +412,11 @@ class ConvexGatedReLU(GatedModel):
 
         self.parameters = parameters
 
-    def __call__(self, X: np.ndarray) -> np.ndarray:
+    def __call__(self, X: tf.Tensor) -> tf.Tensor:
         """Compute the model predictions for a given dataset.
 
         Args:
-            X: an (n  d) array containing the data examples on
-                which to predict.
+            X: an (n x d) tensor containing the data examples on which to predict.
 
         Returns:
             - g(X): the model predictions for X.
@@ -275,16 +425,13 @@ class ConvexGatedReLU(GatedModel):
 
         if self.bias:
             Z = (
-                np.einsum("ij, lkj->lik", X, self.parameters[0])
+                tf.einsum("ij, lkj->lik", X, self.parameters[0])
                 + self.parameters[1]
             )
-
-            # TODO: need to check this computation.
-            return np.einsum("lik, ik->il", Z, D)
+            return tf.einsum("lik, ik->il", Z, D)
         else:
-            return np.einsum("ij, lkj, ik->il", X, self.parameters[0], D)
-
-
+            return tf.einsum("ij, lkj, ik->il", X, self.parameters[0], D)
+        
 class NonConvexGatedReLU(GatedModel):
     """Convex reformulation of a Gated ReLU Network with two-layers.
 

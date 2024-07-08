@@ -12,18 +12,32 @@ TODO:
 
 from typing import Optional
 import math
-
+import tensorflow as tf
 import lab
 
+
+# class ProximalOperator:
+
+#     """Base class for proximal operators."""
+
+#     def __call__(self, w: lab.Tensor, beta: Optional[float] = None) -> lab.Tensor:
+#         """Evaluate the proximal_operator.
+
+#         :param w: parameters to which apply the operator will be applied.
+#         :param beta: the coefficient in the proximal operator. This is usually a step-size.
+#         :returns: prox(w)
+#         """
+
+#         raise NotImplementedError("A proximal operator must implement '__call__'!")
 
 class ProximalOperator:
 
     """Base class for proximal operators."""
 
-    def __call__(self, w: lab.Tensor, beta: Optional[float] = None) -> lab.Tensor:
-        """Evaluate the proximal_operator.
+    def __call__(self, w: tf.Tensor, beta: Optional[float] = None) -> tf.Tensor:
+        """Evaluate the proximal operator.
 
-        :param w: parameters to which apply the operator will be applied.
+        :param w: parameters to which the operator will be applied.
         :param beta: the coefficient in the proximal operator. This is usually a step-size.
         :returns: prox(w)
         """

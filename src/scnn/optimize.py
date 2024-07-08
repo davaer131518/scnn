@@ -13,7 +13,6 @@ import pickle as pkl
 from copy import deepcopy
 from typing import List, Optional, Tuple, Union
 from typing_extensions import Literal
-
 import numpy as np
 
 from scnn.activations import sample_gate_vectors

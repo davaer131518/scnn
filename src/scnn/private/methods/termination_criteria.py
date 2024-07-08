@@ -6,10 +6,61 @@ TODO:
 """
 
 from typing import Optional
-
+import tensorflow as tf
 import lab
 from scnn.private.models.model import Model
 
+
+# class TerminationCriterion:
+#     """Base class for termination criteria.
+
+#     A boolean function with one or more tuning parameters that returns `True`
+#     when an optimization procedure should terminate and `False` otherwise.
+
+#     Attributes:
+#         tol: a parameter controlling sensitivity of the termination criterion.
+#     """
+
+#     tol: float
+
+#     def __init__(self, tol: float):
+#         """
+#         Args:
+#             tol: a tolerance parameter controlling sensitivity of the
+#                 termination criterion.
+#         """
+
+#         self.tol = tol
+
+#     def __call__(
+#         self,
+#         model: Model,
+#         X: lab.Tensor,
+#         y: lab.Tensor,
+#         objective: Optional[lab.Tensor] = None,
+#         grad: Optional[lab.Tensor] = None,
+#     ) -> bool:
+#         """Evaluate the termination criterion given a model and a dataset.
+
+#         The current objective value and gradient are optional parameters;
+#         these should be supplied if they have been pre-calculated for another
+#         purpose. Otherwise, the criterion will compute them as necessary.
+
+#         Args:
+#             model: the prediction model that is being optimized.
+#             X: a :math:`n \\times d` matrix of training examples.
+#             y: a :math:`n \\times c` matrix of training targets.
+#             objective: the current objective value.
+#                 Provide only if already computed.
+#             grad: the current gradient of the objective.
+#                 Provide only if already computed.
+
+#         Returns:
+#             Boolean indicating whether or not optimization should terminate.
+#         """
+#         raise NotImplementedError(
+#             "Termination criteria must implement __call__!"
+#         )
 
 class TerminationCriterion:
     """Base class for termination criteria.
@@ -35,10 +86,10 @@ class TerminationCriterion:
     def __call__(
         self,
         model: Model,
-        X: lab.Tensor,
-        y: lab.Tensor,
-        objective: Optional[lab.Tensor] = None,
-        grad: Optional[lab.Tensor] = None,
+        X: tf.Tensor,
+        y: tf.Tensor,
+        objective: Optional[tf.Tensor] = None,
+        grad: Optional[tf.Tensor] = None,
     ) -> bool:
         """Evaluate the termination criterion given a model and a dataset.
 
@@ -102,12 +153,58 @@ class ConstrainedTerminationCriterion(TerminationCriterion):
         return lab.sum(e_gap ** 2 + lab.smax(i_gap, 0) ** 2)
 
 
+# class GradientNorm(TerminationCriterion):
+#     """First-order optimality criterion.
+
+#     Terminate optimization if and only if the norm of minimum-norm subgradient
+#     is below a certain tolerance.
+
+
+#     Attributes:
+#         tol: the tolerance for the gradient norm. The objective is
+#             approximately stationary if the gradient norm is less than `tol`.
+#     """
+
+#     def __call__(
+#         self,
+#         model: Model,
+#         X: lab.Tensor,
+#         y: lab.Tensor,
+#         objective: Optional[lab.Tensor] = None,
+#         grad: Optional[lab.Tensor] = None,
+#     ) -> bool:
+#         """Terminate if gradient norm is sufficiently small.
+
+#         Determine if the norm of the minimum-norm sub-gradient (or gradient if
+#         the function is smooth) is small enough (according to self.tol) to
+#         constitute a first-order stationary point.
+
+#         The current objective value and gradient are optional parameters;
+#         these should be supplied if they have been pre-calculated for another
+#         purpose. Otherwise, the criterion will compute them as necessary.
+
+#         Args:
+#             model: the prediction model that is being optimized.
+#             X: a :math:`n \\times d` matrix of training examples.
+#             y: a :math:`n \\times c` matrix of training targets.
+#             objective: the current objective value. NOT USED.
+#             grad: the current gradient of the objective.
+#                 Provide only if already computed.
+
+#         Returns:
+#             Boolean indicating whether or not optimization should terminate.
+#         """
+
+#         if grad is None:
+#             grad = model.grad(X, y)
+
+#         return lab.sum(grad ** 2) <= self.tol
+
 class GradientNorm(TerminationCriterion):
     """First-order optimality criterion.
 
     Terminate optimization if and only if the norm of minimum-norm subgradient
     is below a certain tolerance.
-
 
     Attributes:
         tol: the tolerance for the gradient norm. The objective is
@@ -117,10 +214,10 @@ class GradientNorm(TerminationCriterion):
     def __call__(
         self,
         model: Model,
-        X: lab.Tensor,
-        y: lab.Tensor,
-        objective: Optional[lab.Tensor] = None,
-        grad: Optional[lab.Tensor] = None,
+        X: tf.Tensor,
+        y: tf.Tensor,
+        objective: Optional[tf.Tensor] = None,
+        grad: Optional[tf.Tensor] = None,
     ) -> bool:
         """Terminate if gradient norm is sufficiently small.
 
@@ -147,8 +244,7 @@ class GradientNorm(TerminationCriterion):
         if grad is None:
             grad = model.grad(X, y)
 
-        return lab.sum(grad ** 2) <= self.tol
-
+        return tf.reduce_sum(tf.square(grad)) <= self.tol
 
 class StepLength(TerminationCriterion):
     """Criterion based on length of the most recent step.
