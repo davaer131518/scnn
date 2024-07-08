@@ -1,4 +1,4 @@
-# `scnn`: Scalable Convex Neural Networks 
+# `scnn`: Scalable Convex Neural Networks in Tensorflow
 
 A library for global optimization of shallow neural networks.
 API documentation at [ReadTheDocs](https://scnn.readthedocs.io/en/latest/).
